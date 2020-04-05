@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>貪食蛇</title>
+    <meta charset="UTF-8" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <link href="https://fonts.googleapis.com/css?family=Noto+Sans+TC&display=swap" rel="stylesheet" />
+    <style>
+      body {
+        margin: 0;
+      }
+      #canvas {
+        /*border: 1px solid #ddd;*/
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="canvas" width="750px" height="750px"></canvas>
+  </body>
+
+  <script>
+    (function() {
+      var canvas, ctx, cWidth, cHeight;
+      canvas = document.getElementById("canvas");
+      ctx = canvas.getContext("2d");
+      cWidth = canvas.width;
+      cHeight = canvas.height;
+
+      function drawFloor() {
+        for (var j = 0; j < col; j++) {
+          for (var i = 0; i < row; i++) {
+            ctx.fillStyle = i % 2 ^ j % 2 ? "#9bdc6f" : "#54bd3e";
+            ctx.fillRect(i * boxWidth, j * boxWidth, boxWidth, boxWidth);
+          }
+        }
+      }
+      function getPos(o) {
+        return [(o[0] + 0.5) * boxWidth, (o[1] + 0.5) * boxWidth];
+      }
+      function getListPos(list, i) {
+        if (i < 0 || i >= list.length) {
+          return;
+        }
+        return getPos(list[i]);
+      }
+      function getQuadraticCurveTo(p0, p1, p2, t) {
+        var x = p0[0] * (1 - t) * (1 - t) + 2 * p1[0] * (1 - t) * t + p2[0] * t * t;
+        var y = p0[1] * (1 - t) * (1 - t) + 2 * p1[1] * (1 - t) * t + p2[1] * t * t;
+        return [x, y];
+      }
+      function addPath(pathList, dir) {
+        var move = [0, 0];
+        move[dir < 2 ? 0 : 1] = dir % 2 ? 1 : -1;
+        var temp0 = pathList[pathList.length - 1];
+        var pos = [temp0[0] + move[0], temp0[1] + move[1]];
+        pathList.push(pos);
+        return pos;
+      }
+
+      function getFoodPos() {
+        var foodPos;
+        while (true) {
+          foodPos = [Math.floor(Math.random() * row), Math.floor(Math.random() * col)];
+          var bool = true;
+          for (var i = pathIndex + 1; i < pathIndex + count + 1; i++) {
+            if (pathList[i][0] === foodPos[0] && pathList[i][1] === foodPos[1]) {
+              bool = false;
+            }
+          }
+          if (bool) {
+            break;
+          }
+        }
+        return foodPos;
+      }
+
+      function drawText(s, font, x, y) {
+        ctx.font = font;
+        //var ssInfo = ctx.measureText(ss);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(s, x, y);
+      }
+      function setShadow(offsetX, offsetY, blur, color) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = blur;
+        ctx.shadowOffsetX = offsetX;
+        ctx.shadowOffsetY = offsetY;
+      }
+      function clearShadow() {
+        setShadow(0, 0, 0, "rgba(0, 0, 0, 0)");
+      }
+
+      var dirType = ["left", "right", "up", "down"];
+      var play = false;
+      var state = "ready";
+
+      var row = 15;
+      var col = 15;
+      var boxWidth = 50;
+      var keyDir = "right";
+      var dir = dirType.indexOf(keyDir);
+      var oldTime = Date.now();
+      var moveCount = 0;
+      var pathList = [];
+      var addCount = 0;
+      var pathIndex = 0;
+      var count = 0;
+      var growCount = 0;
+      var speed = 5;
+      var food = [0, 0];
+      var score = 0;
+      init();
+
+      function init() {
+        keyDir = "right";
+        dir = dirType.indexOf(keyDir);
+        var center = Math.floor(col * 0.5);
+        pathList = [
+          [0, center],
+          [1, center],
+          [2, center]
+        ];
+        addCount = 0;
+        pathIndex = 0;
+        count = pathList.length;
+        growCount = 0;
+        moveCount = 0;
+        score = 0;
+        addPath(pathList, dir);
+        food = getFoodPos();
+      }
+
+      var animate = function() {
+        requestAnimationFrame(animate);
+
+        var nowTime = Date.now();
+        var delta = (nowTime - oldTime) / 1000;
+        oldTime = nowTime;
+        if (play) {
+          if (addCount > 0) {
+            growCount += speed * delta;
+            var temp = Math.floor(growCount);
+            if (temp) {
+              //growCount %= 1;
+              growCount = 0;
+              addCount--;
+              count++;
+              pathIndex--;
+            }
+          }
+          moveCount += speed * delta;
+          var temp = Math.floor(moveCount);
+          if (temp) {
+            moveCount %= 1;
+            pathIndex++;
+            dir = dirType.indexOf(keyDir);
+            var pos = addPath(pathList, dir);
+            if (pathList.length - 3 > count) {
+              pathIndex--;
+              pathList.shift();
+            }
+          }
+          if (moveCount >= 0.3) {
+            var pos = pathList[pathList.length - 1];
+            var bool = false;
+            for (var i = pathIndex + 1; i < pathIndex + 1 + count - 1; i++) {
+              if (pathList[i][0] === pos[0] && pathList[i][1] === pos[1]) {
+                bool = true;
+                break;
+              }
+            }
+            if (bool || pos[0] < 0 || pos[0] >= row || pos[1] < 0 || pos[1] >= col) {
+              play = false;
+              moveCount = 0.3;
+              state = "lose";
+            }
+            if (pos[0] === food[0] && pos[1] === food[1]) {
+              score++;
+              if (count === row * col) {
+                play = false;
+                moveCount = 0.3;
+                state = "win";
+              } else {
+                var foodPos = getFoodPos();
+                food[0] = foodPos[0];
+                food[1] = foodPos[1];
+                addCount++;
+              }
+            }
+          }
+        }
+
+        ctx.clearRect(0, 0, cWidth, cHeight);
+        drawFloor();
+
+        setShadow(0, 0, 10, "rgba(255,0,0,0.75)");
+        var foodPos = getPos(food);
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(foodPos[0], foodPos[1], 10, 0, 2 * Math.PI, false);
+        ctx.fill();
+        clearShadow();
+
+        /*ctx.strokeStyle = "#0000ff";
+        ctx.lineWidth = 20;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        drawB(pathList, 0.5, pathList.length - 0.5);
+        ctx.stroke();*/
+
+        ctx.strokeStyle = "#447bce";
+        ctx.lineWidth = 20;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        var index = pathIndex + moveCount + 0.5 - growCount;
+        setShadow(1, 2, 4, "rgba(0,0,0,0.75)");
+        drawCurvePath(pathList, index, index + count - 1 + growCount);
+        ctx.stroke();
+        clearShadow();
+
+        if (state === "ready") {
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillRect(0, 0, cWidth, cHeight);
+          ctx.fillStyle = "#ffffff";
+          drawText("貪 食 蛇", "30px Noto Sans TC", cWidth * 0.5, cHeight * 0.5);
+          drawText("【 按 方 向 鍵 開 始 遊 戲 】", "15px Noto Sans TC", cWidth * 0.5, cHeight * 0.5 + 40);
+        } else if (state === "win") {
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillRect(0, 0, cWidth, cHeight);
+          ctx.fillStyle = "#ffffff";
+          drawText("勝 利", "30px Noto Sans TC", cWidth * 0.5, cHeight * 0.5);
+          drawText("【 按 任 意 鍵 】", "15px Noto Sans TC", cWidth * 0.5, cHeight * 0.5 + 40);
+        } else if (state === "lose") {
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillRect(0, 0, cWidth, cHeight);
+          ctx.fillStyle = "#ffffff";
+          drawText("失 敗", "30px Noto Sans TC", cWidth * 0.5, cHeight * 0.5);
+          drawText("【 按 任 意 鍵 重 玩 】", "15px Noto Sans TC", cWidth * 0.5, cHeight * 0.5 + 40);
+        }
+        if (state === "run" || state === "win" || state === "lose") {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "20px Noto Sans TC";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+
+          /*ctx.shadowColor = "rgba(0,0,0,0.5)";
+          ctx.shadowBlur = 6;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 2;*/
+          setShadow(1, 2, 4, "rgba(0,0,0,0.75)");
+          ctx.fillText("分數：" + score, 20, 20);
+          clearShadow();
+        }
+
+        /*for (var i = pathIndex + 1; i < pathIndex + count + 1; i++) {
+          var pos = getPos(pathList[i]);
+          ctx.fillStyle = "#ffff00";
+          ctx.beginPath();
+          ctx.arc(pos[0], pos[1], 10, 0, 2 * Math.PI, false);
+          ctx.fill();
+        }*/
+
+        function drawCurvePath(pathList, start, end) {
+          var start00 = Math.floor(start);
+          var end00 = Math.ceil(end);
+          for (var i = start00; i < end00; i++) {
+            var pp0 = getListPos(pathList, i - 1);
+            var pp1 = getListPos(pathList, i);
+            var pp2 = getListPos(pathList, i + 1);
+            var startC = i === start00 && start % 1 !== 0 ? start % 1 : 0;
+            var endC = i === end00 - 1 && end % 1 !== 0 ? end % 1 : 1;
+            if (pp0 === undefined) {
+              pp0 = [pp1[0] * 2 - pp2[0], pp1[1] * 2 - pp2[1]];
+            }
+            if (pp2 === undefined) {
+              pp2 = [pp1[0] * 2 - pp0[0], pp1[1] * 2 - pp0[1]];
+            }
+            drawCurve(pp0, pp1, pp2, startC, endC, i === 0);
+          }
+        }
+
+        function drawCurve(pp0, pp1, pp2, startC, endC, head) {
+          var p0 = [(pp0[0] + pp1[0]) * 0.5, (pp0[1] + pp1[1]) * 0.5];
+          var p1 = pp1;
+          var p2 = [(pp2[0] + pp1[0]) * 0.5, (pp2[1] + pp1[1]) * 0.5];
+          if (startC === 0 && endC === 1) {
+            ctx[head ? "moveTo" : "lineTo"](p0[0], p0[1]);
+            ctx.quadraticCurveTo(p1[0], p1[1], p2[0], p2[1]);
+          } else {
+            var startPP = getQuadraticCurveTo(p0, p1, p2, startC);
+            var endPP = getQuadraticCurveTo(p0, p1, p2, endC);
+            var centerPP = getQuadraticCurveTo(p0, p1, p2, (startC + endC) * 0.5);
+
+            var c = [centerPP[0] * 2 - (startPP[0] + endPP[0]) * 0.5, centerPP[1] * 2 - (startPP[1] + endPP[1]) * 0.5];
+            ctx[head ? "moveTo" : "lineTo"](startPP[0], startPP[1]);
+            ctx.quadraticCurveTo(c[0], c[1], endPP[0], endPP[1]);
+          }
+        }
+      };
+      animate();
+
+      window.addEventListener("keydown", function(e) {
+        var key = e.key.toLocaleLowerCase();
+
+        if (state === "ready" && key.indexOf("arrow") !== -1) {
+          state = "run";
+          play = true;
+        } else if (state === "win") {
+          state = "ready";
+          init();
+        } else if (state === "lose") {
+          state = "ready";
+          init();
+        } else if (state === "run") {
+          if (key.indexOf("arrow") !== -1) {
+            var temp_dir = key.replace("arrow", "");
+            var dir00 = dirType.indexOf(temp_dir);
+            if ((dir00 < 2) ^ (dir < 2)) {
+              keyDir = temp_dir;
+            }
+          }
+        }
+      });
+    })();
+  </script>
+</html>
