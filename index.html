@@ -10,9 +10,6 @@
       body {
         margin: 0;
       }
-      #canvas {
-        /*border: 1px solid #ddd;*/
-      }
     </style>
   </head>
 
@@ -247,11 +244,6 @@
           ctx.font = "20px Noto Sans TC";
           ctx.textAlign = "left";
           ctx.textBaseline = "top";
-
-          /*ctx.shadowColor = "rgba(0,0,0,0.5)";
-          ctx.shadowBlur = 6;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 2;*/
           setShadow(1, 2, 4, "rgba(0,0,0,0.75)");
           ctx.fillText("分數：" + score, 20, 20);
           clearShadow();
